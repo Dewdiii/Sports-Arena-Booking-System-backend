@@ -51,7 +51,4 @@ async (req: Request, res: Response) => {
 
 export default router;
 
-function check(arg0: string, arg1: string) {
-    throw new Error("Function not implemented.");
-}
 
