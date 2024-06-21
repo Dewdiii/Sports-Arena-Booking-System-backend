@@ -5,20 +5,19 @@ import {
   Navigate,
 } from "react-router-dom";
 import Layout from "./layouts/Layout";
-import Register from "./pages/Register";
-import SignIn from "./pages/SignIn";
+//import Register from "./pages/Register";
+//import SignIn from "./pages/SignIn";
 //import AddHotel from "./pages/AddArena";
 //import { useAppContext } from "./contexts/AppContext";
 //import MyHotels from "./pages/MyArena";
 //import EditHotel from "./pages/EditArena";
-import Search from "./pages/Search";
-import Detail from "./pages/Detail";
+//import Search from "./pages/Search";
+//import Detail from "./pages/Detail";
 //import Booking from "./pages/Booking";
 //import MyBookings from "./pages/MyBookings";
-import Home from "./pages/Home";
+//import Home from "./pages/Home";
 
 const App = () => {
-  const { isLoggedIn } = useAppContext();
   return (
     <Router>
       <Routes>
@@ -69,7 +68,5 @@ const App = () => {
 };
 
 export default App;
-function useAppContext(): { isLoggedIn: any; } {
-  throw new Error("Function not implemented.");
-}
+
 
