@@ -5,7 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import Layout from "./layouts/Layout";
-//import Register from "./pages/Register";
+import Register from "./pages/Register";
 //import SignIn from "./pages/SignIn";
 //import AddHotel from "./pages/AddArena";
 //import { useAppContext } from "./contexts/AppContext";
@@ -22,42 +22,10 @@ const App = () => {
     <Router>
       <Routes>
         <Route
-          path="/"
-          element={
-            <Layout>
-              <Home />
-            </Layout>
-          }
-        />
-        <Route
-          path="/search"
-          element={
-            <Layout>
-              <Search />
-            </Layout>
-          }
-        />
-        <Route
-          path="/detail/:hotelId"
-          element={
-            <Layout>
-              <Detail />
-            </Layout>
-          }
-        />
-        <Route
           path="/register"
           element={
             <Layout>
               <Register />
-            </Layout>
-          }
-        />
-        <Route
-          path="/sign-in"
-          element={
-            <Layout>
-              <SignIn />
             </Layout>
           }
         />
