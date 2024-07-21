@@ -1,19 +1,17 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { UserType } from "../shared/types";
 
-export type UserType = {
-    _id: string;
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-};
 
 const userSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true},
-    password: { type: String, required: true},
-    firstName: { type: String, required: true},
-    lastName: { type: String, required: true},
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    mobile: { type: String, required: true },
+    stateProvince: { type: String, required: true },
+    zipCode: { type: String, required: true },
+    userType: { type: String, enum: ["customer", "arena_owner"], required: true },
 });
 
 userSchema.pre("save", async function(next){

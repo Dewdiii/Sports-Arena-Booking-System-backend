@@ -4,6 +4,11 @@ import "dotenv/config";
 import mongoose from 'mongoose';
 import userRoutes from './routes/users';
 import authRoutes from './routes/auth';
+import myArenaRoutes from './routes/my-arenas';
+import customerRoutes from './routes/customer';
+import arenaOwnerRoutes from './routes/arena-owner';
+import bookingRoutes from "./routes/booking";
+import bookingsRoute from "./routes/bookings";
 import cookieParser from "cookie-parser";
 import {v2 as cloudinary} from 'cloudinary';
 
@@ -26,6 +31,11 @@ app.use(cors({
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/my-arenas", myArenaRoutes);
+app.use("/api/customer", customerRoutes);
+app.use("/api/arena-owner", arenaOwnerRoutes);
+app.use("/booking", bookingRoutes);
+app.use("/bookings", bookingsRoute);
 
 app.listen(7000, ()=> {
     console.log("server running on localhost:7000");

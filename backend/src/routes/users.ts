@@ -11,7 +11,13 @@ router.post("/register",
     check("firstName", "First Name is required").isString(),
     check("lastName", "Last Name is required").isString(),
     check("email", "Email is required").isEmail(),
-    check("password", "Password with 6 or more characters is required").isLength({min:6}),
+    check("password", "Password with 6 or more characters required").isLength({
+      min: 6,
+    }),
+    check("mobile", "Mobile is required").isString(),
+    check("stateProvince", "State/Province is required").isString(),
+    check("zipCode", "Zip Code is required").isString(),
+    check("userType", "User type is required and must be either 'customer' or 'arena_owner'").isIn(["customer", "arena_owner"]),
 ], 
 async (req: Request, res: Response) => {
     const errors = validationResult(req);
