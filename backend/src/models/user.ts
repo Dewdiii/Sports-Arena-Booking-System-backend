@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
     lastName: { type: String, required: true },
     mobile: { type: String, required: true },
     stateProvince: { type: String, required: true },
-    zipCode: { type: String, required: true },
+    //zipCode: { type: String, required: true },
     userType: { type: String, enum: ["customer", "arena_owner"], required: true },
 });
 

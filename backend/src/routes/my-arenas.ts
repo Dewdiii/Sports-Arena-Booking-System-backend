@@ -5,8 +5,18 @@ import Arena from "../models/ground";
 import verifyToken from "../middlewear/auth";
 import { body } from "express-validator";
 import { ArenaType, CourtType } from "../shared/types";
+import { log } from "console";
+import dotenv from 'dotenv';
 
+dotenv.config();
 const router = express.Router();
+
+
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -16,6 +26,7 @@ const upload = multer({
   },
 });
 
+//Create a new Arena
 router.post(
   "/",
   verifyToken,
@@ -48,7 +59,7 @@ router.post(
   }
 );
 
-
+// Add a Court to an Arena
 router.post(
   "/:arenaId/courts",
   verifyToken,
@@ -91,6 +102,7 @@ router.post(
   }
 );
 
+// Get all arenas for the authenticated user
 router.get("/", verifyToken, async (req: Request, res: Response) => {
   try {
     const arenas = await Arena.find({ userId: req.userId });
@@ -100,6 +112,7 @@ router.get("/", verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+// Get a specific arena by its ID
 router.get("/:id", verifyToken, async (req: Request, res: Response) => {
   const id = req.params.id.toString();
   try {
@@ -113,16 +126,18 @@ router.get("/:id", verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+// Get courts of a specific arena
 router.get("/:arenaId/courts", verifyToken, async (req: Request, res: Response) => {
   try {
     const arenaId = req.params.arenaId.toString();
-    const courts = await Arena.find({ arenaId, userId: req.userId });
-    res.json(courts);
+    const arena = await Arena.findOne({ _id: arenaId, userId: req.userId });
+    res.json(arena?.courts || []);
   } catch (error) {
     res.status(500).json({ message: "Error fetching courts" });
   }
 });
 
+// Update an existing arena and its image files
 router.put(
   "/:arenaId",
   verifyToken,
@@ -161,48 +176,87 @@ router.put(
   }
 );
 
+// Get available time slots for a specific court in a specific arena
+router.get("/:arenaId/courts/:courtId/timeslots", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { arenaId, courtId } = req.params;
+
+    const arena = await Arena.findOne({ _id: arenaId, userId: req.userId });
+    if (!arena) {
+      return res.status(404).json({ message: "Arena not found" });
+    }
+
+    const court = arena.courts.find((c: any) => c._id.toString() === courtId);
+    if (!court) {
+      return res.status(404).json({ message: "Court not found" });
+    }
+
+    res.status(200).json({ availableTime: court.availableTime });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching time slots" });
+  }
+});
+
+
+// Update a specific court of a specific arena
 router.put(
   "/:arenaId/courts/:courtId",
   verifyToken,
   upload.array("imageFiles"),
   async (req: Request, res: Response) => {
     try {
-      const updatedCourt: CourtType = req.body;
-      updatedCourt.lastUpdated = new Date();
+      const { arenaId, courtId } = req.params;
+      const updatedCourtData: CourtType = req.body;
+      const files = req.files as Express.Multer.File[];
 
-      const court = await Arena.findOneAndUpdate(
-        {
-          _id: req.params.courtId,
-          userId: req.userId,
-        },
-        updatedCourt,
-        { new: true }
+      const arena = await Arena.findOne({
+        _id: arenaId,
+        userId: req.userId,
+      });
+
+      if (!arena) {
+        return res.status(404).json({ message: "Arena not found" });
+      }
+
+      const court = arena.courts.find(
+        (c) => c._id.toString() === courtId
       );
 
       if (!court) {
         return res.status(404).json({ message: "Court not found" });
       }
 
-      const files = req.files as Express.Multer.File[];
-      const updatedImageUrls = await uploadImages(files);
+      // Upload new images if provided
+      let newImageUrls: string[] = [];
+      if (files && files.length > 0) {
+        newImageUrls = await uploadImages(files);
+      }
 
-      court.imageUrls = [
-        ...updatedImageUrls,
-        ...(updatedCourt.imageUrls || []),
-      ];
+      // Update court fields
+      court.name = updatedCourtData.name || court.name;
+      court.type = updatedCourtData.type || court.type;
+      court.pricePerHour = updatedCourtData.pricePerHour || court.pricePerHour;
+      court.description = updatedCourtData.description || court.description;
+      court.lastUpdated = new Date();
 
-      await court.save();
-      res.status(201).json(court);
+      // Merge new image URLs with existing ones (optional: limit total count)
+      court.imageUrls = [...newImageUrls, ...(updatedCourtData.imageUrls || [])];
+
+      await arena.save();
+
+      res.status(200).json(court);
     } catch (error) {
-      res.status(500).json({ message: "Something went throw" });
+      console.error("Error updating court:", error);
+      res.status(500).json({ message: "Something went wrong" });
     }
   }
 );
 
+// Helper function to upload images to Cloudinary
 async function uploadImages(imageFiles: Express.Multer.File[]) {
   const uploadPromises = imageFiles.map(async (image) => {
     const b64 = Buffer.from(image.buffer).toString("base64");
-    let dataURI = "data:" + image.mimetype + ";base64," + b64;
+    const dataURI = "data:" + image.mimetype + ";base64," + b64;
     const res = await cloudinary.v2.uploader.upload(dataURI);
     return res.url;
   });
@@ -210,5 +264,89 @@ async function uploadImages(imageFiles: Express.Multer.File[]) {
   const imageUrls = await Promise.all(uploadPromises);
   return imageUrls;
 }
+
+router.patch(
+  "/:arenaId/courts/:courtId/timeslots",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { arenaId, courtId } = req.params;
+      const { newTimeSlots } = req.body; // Array of new time slots
+
+      if (!Array.isArray(newTimeSlots) || newTimeSlots.length === 0) {
+        return res.status(400).json({ message: "newTimeSlots must be a non-empty array" });
+      }
+
+      const arena = await Arena.findOne({ _id: arenaId, userId: req.userId });
+      if (!arena) {
+        return res.status(404).json({ message: "Arena not found" });
+      }
+
+      const court = arena.courts.find((c: any) => c._id.toString() === courtId);
+      if (!court) {
+        return res.status(404).json({ message: "Court not found" });
+      }
+
+      // Avoid adding duplicate time slots
+      court.availableTime = Array.from(new Set([...court.availableTime, ...newTimeSlots]));
+      court.lastUpdated = new Date();
+
+      await arena.save();
+
+      res.status(200).json({ message: "Time slots added successfully", availableTime: court.availableTime });
+    } catch (error) {
+      res.status(500).json({ message: "Error adding time slots" });
+    }
+  }
+);
+
+
+//Delete Arena by ID
+router.delete("/:arenaId", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const arena = await Arena.findOneAndDelete({
+      _id: req.params.arenaId,
+      userId: req.userId,
+    });
+
+    if (!arena) {
+      return res.status(404).json({ message: "Arena not found" });
+    }
+
+    res.status(200).json({ message: "Arena deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting arena" });
+  }
+});
+
+//Delete Court by Court ID within an Arena
+router.delete("/:arenaId/courts/:courtId", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const arena = await Arena.findOne({
+      _id: req.params.arenaId,
+      userId: req.userId,
+    });
+
+    if (!arena) {
+      return res.status(404).json({ message: "Arena not found" });
+    }
+
+    const courtIndex = arena.courts.findIndex(
+      (court: any) => court._id.toString() === req.params.courtId
+    );
+
+    if (courtIndex === -1) {
+      return res.status(404).json({ message: "Court not found" });
+    }
+
+    arena.courts.splice(courtIndex, 1);
+    await arena.save();
+
+    res.status(200).json({ message: "Court deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting court" });
+  }
+});
+
 
 export default router;

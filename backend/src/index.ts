@@ -8,7 +8,9 @@ import myArenaRoutes from './routes/my-arenas';
 import customerRoutes from './routes/customer';
 import arenaOwnerRoutes from './routes/arena-owner';
 import bookingRoutes from "./routes/booking";
-//import bookingsRoute from "./routes/bookings";
+import bookingsRoute from "./routes/bookings";
+import ratingRoutes from "./routes/rating";
+import pinnedRoutes from "./routes/pinned";
 import cookieParser from "cookie-parser";
 import {v2 as cloudinary} from 'cloudinary';
 
@@ -37,7 +39,9 @@ app.use("/api/my-arenas", myArenaRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/arena-owner", arenaOwnerRoutes);
 app.use("/booking", bookingRoutes);
-//app.use("/bookings", bookingsRoute);
+app.use("/bookings", bookingsRoute);
+app.use("/api/ratings", ratingRoutes);
+app.use("/api/pinned", pinnedRoutes);
 
 app.listen(7000, ()=> {
     console.log("server running on localhost:7000");

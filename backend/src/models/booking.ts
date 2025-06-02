@@ -13,6 +13,11 @@ const bookingSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     transactionId: { type: String, required: true },
   },
+  status: {
+    type: String,
+    enum: ["active", "cancelled", "completed"],
+    default: "active",
+  },
 });
 const Booking = mongoose.model<BookingType>("Booking", bookingSchema);
 export default Booking;

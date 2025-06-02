@@ -1,13 +1,18 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import { ArenaType, CourtType } from '../shared/types';
 
-// Define the interface for the Court document
-export interface CourtDocument extends CourtType, Document {}
+// --- Extend the CourtType interface if needed ---
+export interface CourtDocument extends Omit<CourtType, '_id'>, Document {
+  _id: mongoose.Types.ObjectId;
+}
 
-// Create the schema for the Court subdocument
+// Create schema for Court (embedded)
 const CourtSchema: Schema<CourtDocument> = new Schema({
   name: { type: String, required: true },
+  type: { type: String, required: true }, // e.g. "Indoor", "Outdoor"
   sports: { type: [String], required: true },
+  pricePerHour: { type: Number, required: true },
+  description: { type: String },
   availableTime: [
     {
       day: { type: String, required: true },
@@ -20,12 +25,12 @@ const CourtSchema: Schema<CourtDocument> = new Schema({
   userId: { type: String, required: true },
 });
 
-// Define the interface for the Arena document
+// --- Arena Interface ---
 export interface ArenaDocument extends ArenaType, Document {
   courts: CourtDocument[];
 }
 
-// Create the schema for the Arena model
+// --- Arena Schema ---
 const ArenaSchema: Schema<ArenaDocument> = new Schema({
   name: { type: String, required: true },
   city: { type: String, required: true },
@@ -37,7 +42,7 @@ const ArenaSchema: Schema<ArenaDocument> = new Schema({
   courts: [CourtSchema],
 }, { timestamps: true });
 
-// Create the Arena model
+// --- Arena Model ---
 const Arena: Model<ArenaDocument> = mongoose.model('Arena', ArenaSchema);
 
 export default Arena;

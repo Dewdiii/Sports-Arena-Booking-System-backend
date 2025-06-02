@@ -4,7 +4,7 @@
   "description": "",
   "main": "./src/index.ts",
   "scripts": {
-    "dev": "nodemon"
+  "dev": "nodemon --watch src --ext ts --exec ts-node ./src/index.ts"
   },
   "author": "Dewdi",
   "license": "ISC",
