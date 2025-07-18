@@ -38,8 +38,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/my-arenas", myArenaRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/arena-owner", arenaOwnerRoutes);
-app.use("/booking", bookingRoutes);
-app.use("/bookings", bookingsRoute);
+app.use("/api/booking", bookingRoutes);
+app.use("/api/bookings", bookingsRoute);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/pinned", pinnedRoutes);
 

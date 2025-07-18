@@ -4,7 +4,7 @@ import cloudinary from "cloudinary";
 import Arena from "../models/ground";
 import verifyToken from "../middlewear/auth";
 import { body } from "express-validator";
-import { ArenaType, CourtType } from "../shared/types";
+import { ArenaType, AvailableTimeSlot, CourtType } from "../shared/types";
 import { log } from "console";
 import dotenv from 'dotenv';
 
@@ -65,42 +65,70 @@ router.post(
   verifyToken,
   [
     body("name").notEmpty().withMessage("Name is required"),
-    body("sports")
-      .notEmpty()
-      .isArray()
-      .withMessage("Sports are required"),
-    body("availableTime")
-      .notEmpty()
-      .isArray()
-      .withMessage("Available time is required"),
+    body("sports").notEmpty().withMessage("Sports is required"),
+    body("availableTime").notEmpty().withMessage("Available time is required"),
   ],
   upload.array("imageFiles", 6),
   async (req: Request, res: Response) => {
     try {
-      const arenaId = req.params.arenaId.toString();
-      const newCourt: CourtType = req.body;
+      const arenaId = req.params.arenaId;
+  let sports: string[], availableTime: AvailableTimeSlot[];
+      try {
+        sports = JSON.parse(req.body.sports);
+        availableTime = JSON.parse(req.body.availableTime);
 
-      const imageFiles = req.files as Express.Multer.File[];
-      const imageUrls = await uploadImages(imageFiles);
-      newCourt.imageUrls = imageUrls;
-      newCourt.lastUpdated = new Date();
-      newCourt.userId = req.userId;
+        if (!Array.isArray(availableTime)) {
+          return res.status(400).json({ message: "availableTime must be an array" });
+        }
 
+        const isValid = availableTime.every(slot =>
+          slot.day && slot.openTime && slot.closeTime
+        );
+
+        if (!isValid) {
+          return res.status(400).json({ message: "Each time slot must include day, openTime, and closeTime" });
+        }
+
+      } catch {
+        return res.status(400).json({ message: "sports and availableTime must be valid JSON arrays" });
+      }
+
+      // Build the new court object explicitly
+      const newCourt: CourtType = {
+        name: req.body.name,
+        sports,
+        availableTime: [],
+        description: req.body.description || "",
+        pricePerHour: req.body.pricePerHour ? Number(req.body.pricePerHour) : 0,
+        type: req.body.type || "",
+        imageUrls: [],
+        lastUpdated: new Date(),
+        userId: req.userId,
+      };
+
+      // Upload images if any
+      const imageFiles = req.files as Express.Multer.File[] || [];
+      if (imageFiles.length > 0) {
+        newCourt.imageUrls = await uploadImages(imageFiles);
+      }
+
+      // Find arena and add court
       const arena = await Arena.findById(arenaId);
       if (!arena) {
         return res.status(404).json({ message: "Arena not found" });
       }
 
-      arena.courts.push(newCourt as any); // Type casting to bypass TypeScript issue
+      arena.courts.push(newCourt as any);
       await arena.save();
 
-      res.status(201).send(arena);
+      res.status(201).json(arena);
     } catch (e) {
-      console.log(e);
+      console.error(e);
       res.status(500).json({ message: "Something went wrong" });
     }
   }
 );
+
 
 // Get all arenas for the authenticated user
 router.get("/", verifyToken, async (req: Request, res: Response) => {
@@ -176,7 +204,7 @@ router.put(
   }
 );
 
-// Get available time slots for a specific court in a specific arena
+// Get available time slots for a specific court in a specific arena-empty array
 router.get("/:arenaId/courts/:courtId/timeslots", verifyToken, async (req: Request, res: Response) => {
   try {
     const { arenaId, courtId } = req.params;
@@ -265,6 +293,7 @@ async function uploadImages(imageFiles: Express.Multer.File[]) {
   return imageUrls;
 }
 
+//Update timeslots for a specific court-not working 
 router.patch(
   "/:arenaId/courts/:courtId/timeslots",
   verifyToken,

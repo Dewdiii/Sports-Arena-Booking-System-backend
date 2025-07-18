@@ -21,23 +21,36 @@ router.get("/", verifyToken, async (req: Request, res: Response) => {
 
 // @route   GET /bookings/history
 // @desc    Get active and past bookings separately
-// @access  Private
+// @access  Private - 500 error
 router.get("/history", verifyToken, async (req: Request, res: Response) => {
   try {
+    console.log("User ID from token:", req.userId); // ✅ Check if user ID exists
+
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const bookings = await Booking.find({ userId: req.userId });
+    console.log("Found bookings:", bookings.length);
 
     const currentDateTime = new Date();
 
-    const active = bookings.filter((b: any) =>
-      b.status === "active" &&
-      new Date(`${b.date}T${b.startTime}`) > currentDateTime
-    );
+    const active = bookings.filter((b: any) => {
+      const bookingDateTime = new Date(`${b.date}T${b.startTime}`);
+      return (
+        b.status === "active" &&
+        bookingDateTime > currentDateTime
+      );
+    });
 
-    const past = bookings.filter((b: any) =>
-      b.status === "cancelled" ||
-      b.status === "completed" ||
-      new Date(`${b.date}T${b.startTime}`) <= currentDateTime
-    );
+    const past = bookings.filter((b: any) => {
+      const bookingDateTime = new Date(`${b.date}T${b.startTime}`);
+      return (
+        b.status === "cancelled" ||
+        b.status === "completed" ||
+        bookingDateTime <= currentDateTime
+      );
+    });
 
     res.status(200).json({ active, past });
   } catch (error) {
@@ -45,6 +58,23 @@ router.get("/history", verifyToken, async (req: Request, res: Response) => {
     res.status(500).json({ message: "Unable to fetch booking history" });
   }
 });
+
+
+//Get booking details by its ID
+router.get("/:bookingId", verifyToken, async (req, res) => {
+  const { bookingId } = req.params;
+
+  try {
+    const booking = await Booking.findOne({ _id: bookingId, userId: req.userId });
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    res.status(200).json(booking);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching booking" });
+  }
+});
+
 
 // @route   PATCH /bookings/:id/cancel
 // @desc    Cancel a booking
@@ -76,10 +106,12 @@ router.patch("/:id/cancel", verifyToken, async (req: Request, res: Response) => 
 // @route   POST /bookings
 // @desc    Create a new booking (payment optional)
 // @access  Private
-router.post("/", verifyToken, async (req: Request, res: Response) => {
-  const { date, startTime, duration, court, amount } = req.body;
+// Route: POST /api/bookings/:arenaId/courts/:courtId
+router.post("/:arenaId/courts/:courtId", verifyToken, async (req: Request, res: Response) => {
+  const { arenaId, courtId } = req.params;
+  const { date, startTime, duration, amount } = req.body;
 
-  if (!date || !startTime || !duration || !court) {
+  if (!date || !startTime || !duration) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
@@ -87,7 +119,14 @@ router.post("/", verifyToken, async (req: Request, res: Response) => {
     const startHour = parseInt(startTime.split(":")[0], 10);
     const endHour = startHour + parseInt(duration, 10);
 
-    const existingBookings = await Booking.find({ date, court });
+    // Check if the court exists in the arena
+    const arena = await Arena.findOne({ _id: arenaId, "courts._id": courtId });
+    if (!arena) {
+      return res.status(404).json({ message: "Arena or court not found" });
+    }
+
+    // Check existing bookings for that court on that date
+    const existingBookings = await Booking.find({ date, court: courtId });
 
     const hasConflict = existingBookings.some((b: any) => {
       const bStart = parseInt(b.startTime.split(":")[0], 10);
@@ -99,6 +138,7 @@ router.post("/", verifyToken, async (req: Request, res: Response) => {
       return res.status(409).json({ message: "Court already booked for the selected time range" });
     }
 
+    // Payment processing if required
     let paymentStatus = "not_required";
     let paymentDetails: { amount: number; transactionId: string } | null = null;
 
@@ -115,27 +155,25 @@ router.post("/", verifyToken, async (req: Request, res: Response) => {
       };
     }
 
+    // Create the booking
     const newBooking = new Booking({
       userId: req.userId,
       date,
       startTime,
       duration,
-      court,
+      court: courtId,
       paymentStatus,
       paymentDetails,
-      status: "active", // default booking status
+      status: "active",
     });
 
     await newBooking.save();
 
-    const arena = await Arena.findOneAndUpdate(
-      { "courts._id": court },
+    // Attach the booking to the arena
+    await Arena.findOneAndUpdate(
+      { _id: arenaId, "courts._id": courtId },
       { $push: { bookings: newBooking._id } }
     );
-
-    if (!arena) {
-      return res.status(404).json({ message: "Arena or court not found" });
-    }
 
     res.status(201).json(newBooking);
   } catch (error) {
