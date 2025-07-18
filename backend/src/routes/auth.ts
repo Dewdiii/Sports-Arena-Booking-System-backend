@@ -81,13 +81,15 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
   const resetUrl = `http://localhost:3000/reset-password/${token}`; // adjust frontend URL
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,    // Replace with App password
-    },
-  });
+ const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: Number(process.env.EMAIL_PORT),
+  secure: false, // true for port 465, false for 587
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
   await transporter.sendMail({
     to: user.email,
