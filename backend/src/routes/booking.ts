@@ -3,6 +3,7 @@ import verifyToken from "../middlewear/auth";
 import Booking from "../models/booking";
 import Arena from "../models/ground";
 import { processPayment } from "../utils/payment";
+import stripe from "../utils/stripe";
 
 const router = express.Router();
 
@@ -103,83 +104,99 @@ router.patch("/:id/cancel", verifyToken, async (req: Request, res: Response) => 
   }
 });
 
-// @route   POST /bookings
-// @desc    Create a new booking (payment optional)
-// @access  Private
-// Route: POST /api/bookings/:arenaId/courts/:courtId
 router.post("/:arenaId/courts/:courtId", verifyToken, async (req: Request, res: Response) => {
   const { arenaId, courtId } = req.params;
-  const { date, startTime, duration, amount } = req.body;
+  const { date, startTime, duration, paymentIntentId, amount } = req.body;
 
   if (!date || !startTime || !duration) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
-    const startHour = parseInt(startTime.split(":")[0], 10);
-    const endHour = startHour + parseInt(duration, 10);
-
-    // Check if the court exists in the arena
+    // 1. Find Arena and Court
     const arena = await Arena.findOne({ _id: arenaId, "courts._id": courtId });
     if (!arena) {
       return res.status(404).json({ message: "Arena or court not found" });
     }
 
-    // Check existing bookings for that court on that date
+    // 2. Check for Time Conflicts
+    const startHour = parseInt(startTime.split(":")[0], 10);
+    const endHour = startHour + parseInt(duration, 10);
+
     const existingBookings = await Booking.find({ date, court: courtId });
 
     const hasConflict = existingBookings.some((b: any) => {
       const bStart = parseInt(b.startTime.split(":")[0], 10);
       const bEnd = bStart + parseInt(b.duration, 10);
-      return (startHour < bEnd && endHour > bStart);
+      return startHour < bEnd && endHour > bStart;
     });
 
     if (hasConflict) {
       return res.status(409).json({ message: "Court already booked for the selected time range" });
     }
 
-    // Payment processing if required
+    // 3. Payment Handling
     let paymentStatus = "not_required";
-    let paymentDetails: { amount: number; transactionId: string } | null = null;
+    let paymentDetails: { amount: number; transactionId: string } | undefined;
 
-    if (amount && amount > 0) {
-      const paymentResult = await processPayment(amount);
-      if (paymentResult.status !== "completed") {
-        return res.status(400).json({ message: "Payment failed" });
+    if (paymentIntentId) {
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (!paymentIntent) {
+        return res.status(400).json({ message: "Payment intent not found" });
+      }
+
+      if (
+        paymentIntent.metadata.arenaId !== arenaId ||
+        paymentIntent.metadata.userId !== req.userId
+      ) {
+        return res.status(400).json({ message: "Payment intent metadata mismatch" });
+      }
+
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({
+          message: `Payment not completed. Status: ${paymentIntent.status}`,
+        });
       }
 
       paymentStatus = "completed";
       paymentDetails = {
-        amount,
-        transactionId: paymentResult.transactionId,
+        amount: paymentIntent.amount / 100,
+        transactionId: paymentIntent.id,
       };
     }
 
-    // Create the booking
-    const newBooking = new Booking({
+    // 4. Create Booking Data
+    const bookingData: any = {
       userId: req.userId,
       date,
       startTime,
       duration,
       court: courtId,
       paymentStatus,
-      paymentDetails,
       status: "active",
-    });
+    };
 
-    await newBooking.save();
+    if (paymentDetails) {
+      bookingData.paymentDetails = paymentDetails;
+    }
 
-    // Attach the booking to the arena
+    // 5. Save Booking
+    const booking = new Booking(bookingData);
+    await booking.save();
+
+    // 6. Link to Arena
     await Arena.findOneAndUpdate(
       { _id: arenaId, "courts._id": courtId },
-      { $push: { bookings: newBooking._id } }
+      { $push: { bookings: booking._id } }
     );
 
-    res.status(201).json(newBooking);
-  } catch (error) {
-    console.error("Error creating booking:", error);
-    res.status(500).json({ message: "Unable to create booking" });
+    return res.status(201).json({ message: "Booking successful", booking });
+  } catch (err) {
+    console.error("Booking Error:", err);
+    return res.status(500).json({ message: "Booking failed" });
   }
 });
+
 
 export default router;

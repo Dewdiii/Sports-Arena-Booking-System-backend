@@ -49,19 +49,19 @@ export type UserType = {
   
   
   export type BookingType = {
-    userId: string;
-    date: Date;
-    startTime: string;
-    duration: number;
-    court: string;
-    status: "active" | "cancelled" | "completed";
-    paymentStatus: "completed" |"pending"| "not_required";
-    paymentDetails: {
-      amount: number;
+  userId: string;
+  date: Date;
+  startTime: string;
+  duration: number;
+  court: string | mongoose.Types.ObjectId;
+  status: "active" | "cancelled" | "completed";
+  paymentStatus: "completed" | "pending" | "not_required";
+  paymentDetails?: {
+    amount: number;
     transactionId: string;
-  } | null;
-  
+  };
 };
+  
   
   export type ArenaSearchResponse = {
     data: ArenaType[];
