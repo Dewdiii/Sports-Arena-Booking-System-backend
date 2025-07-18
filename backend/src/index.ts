@@ -8,7 +8,7 @@ import myArenaRoutes from './routes/my-arenas';
 import customerRoutes from './routes/customer';
 import arenaOwnerRoutes from './routes/arena-owner';
 import bookingRoutes from "./routes/booking";
-import bookingsRoute from "./routes/bookings";
+import arenaRoute from "./routes/arena";
 import ratingRoutes from "./routes/rating";
 import pinnedRoutes from "./routes/pinned";
 import cookieParser from "cookie-parser";
@@ -39,7 +39,7 @@ app.use("/api/my-arenas", myArenaRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/arena-owner", arenaOwnerRoutes);
 app.use("/api/booking", bookingRoutes);
-app.use("/api/bookings", bookingsRoute);
+app.use("/api/arena", arenaRoute);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/pinned", pinnedRoutes);
 
