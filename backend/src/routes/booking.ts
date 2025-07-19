@@ -5,6 +5,8 @@ import Arena from "../models/ground";
 import { processPayment } from "../utils/payment";
 import stripe from "../utils/stripe";
 
+//booking history is not working
+
 const router = express.Router();
 
 // @route   GET /bookings

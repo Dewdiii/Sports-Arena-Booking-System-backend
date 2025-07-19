@@ -8,6 +8,8 @@ import { ArenaType, AvailableTimeSlot, CourtType } from "../shared/types";
 import { log } from "console";
 import dotenv from 'dotenv';
 
+//bug in timeslot
+
 dotenv.config();
 const router = express.Router();
 
@@ -76,6 +78,11 @@ router.post(
       try {
         sports = JSON.parse(req.body.sports);
         availableTime = JSON.parse(req.body.availableTime);
+        availableTime = availableTime.map(slot => ({
+          day: slot.day,
+          openTime: slot.openTime,
+          closeTime: slot.closeTime,
+        }));
 
         if (!Array.isArray(availableTime)) {
           return res.status(400).json({ message: "availableTime must be an array" });
@@ -97,7 +104,7 @@ router.post(
       const newCourt: CourtType = {
         name: req.body.name,
         sports,
-        availableTime: [],
+        availableTime,
         description: req.body.description || "",
         pricePerHour: req.body.pricePerHour ? Number(req.body.pricePerHour) : 0,
         type: req.body.type || "",
@@ -293,14 +300,13 @@ async function uploadImages(imageFiles: Express.Multer.File[]) {
   return imageUrls;
 }
 
-//Update timeslots for a specific court-not working 
 router.patch(
   "/:arenaId/courts/:courtId/timeslots",
   verifyToken,
   async (req: Request, res: Response) => {
     try {
       const { arenaId, courtId } = req.params;
-      const { newTimeSlots } = req.body; // Array of new time slots
+      const { newTimeSlots } = req.body;
 
       if (!Array.isArray(newTimeSlots) || newTimeSlots.length === 0) {
         return res.status(400).json({ message: "newTimeSlots must be a non-empty array" });
@@ -316,18 +322,39 @@ router.patch(
         return res.status(404).json({ message: "Court not found" });
       }
 
-      // Avoid adding duplicate time slots
-      court.availableTime = Array.from(new Set([...court.availableTime, ...newTimeSlots]));
+      // Clean newTimeSlots input
+      const cleanedNewSlots = newTimeSlots.map((slot: any) => ({
+        day: slot.day,
+        openTime: slot.openTime,
+        closeTime: slot.closeTime,
+      }));
+
+      // Remove duplicates by checking existing slots
+      const existingSlots = court.availableTime.map((slot: any) => 
+        `${slot.day}-${slot.openTime}-${slot.closeTime}`
+      );
+
+      const uniqueSlotsToAdd = cleanedNewSlots.filter((slot: any) => {
+        const key = `${slot.day}-${slot.openTime}-${slot.closeTime}`;
+        return !existingSlots.includes(key);
+      });
+
+      court.availableTime.push(...uniqueSlotsToAdd);
       court.lastUpdated = new Date();
 
       await arena.save();
 
-      res.status(200).json({ message: "Time slots added successfully", availableTime: court.availableTime });
+      res.status(200).json({
+        message: "Time slots updated successfully",
+        availableTime: court.availableTime,
+      });
     } catch (error) {
-      res.status(500).json({ message: "Error adding time slots" });
+      console.error("Error updating timeslots:", error);
+      res.status(500).json({ message: "Error updating time slots", error: (error as any).message });
     }
   }
 );
+
 
 
 //Delete Arena by ID

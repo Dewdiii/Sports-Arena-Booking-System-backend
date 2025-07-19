@@ -5,6 +5,8 @@ import { check, validationResult } from "express-validator";
 
 const router = express.Router();
 
+//no bugs
+
 // /api/users/register
 router.post("/register", 
 [

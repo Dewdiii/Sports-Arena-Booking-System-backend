@@ -11,3 +11,5 @@ router.get("/dashboard", verifyToken, (req: Request, res: Response) => {
 });
 
 export default router;
+
+//bug-access denied

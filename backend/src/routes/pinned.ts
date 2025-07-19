@@ -5,6 +5,8 @@ import Arena from "../models/ground";
 
 const router = express.Router();
 
+//no bugs
+
 // Pin an arena
 router.post("/:arenaId", verifyToken, async (req: Request, res: Response) => {
   const { arenaId } = req.params;

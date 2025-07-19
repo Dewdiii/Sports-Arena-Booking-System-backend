@@ -4,6 +4,8 @@ import Rating from "../models/rating";
 
 const router = express.Router();
 
+//no bugs
+
 // Add rating/review
 router.post("/", verifyToken, async (req: Request, res: Response) => {
   const { arenaId, sportType, rating, review } = req.body;

@@ -3,6 +3,7 @@ import verifyToken from "../middlewear/auth";
 import Booking from "../models/booking";
 import Arena from "../models/ground"; // assuming your arena model is here
 
+//bug-access denied
 const router = express.Router();
 
 router.get("/dashboard", verifyToken, async (req: Request, res: Response) => {

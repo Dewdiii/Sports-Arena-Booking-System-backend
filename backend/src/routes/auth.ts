@@ -7,6 +7,8 @@ import nodemailer from "nodemailer";
 import User from "../models/user";
 import verifyToken from "../middlewear/auth";
 
+//forgotton password and reset password are not working.
+
 const router = express.Router();
 
 
